@@ -223,7 +223,7 @@ class PFRangePlusBearingWithoutCommunication:
         # np.random.choice(배열, 몇개 선택, 각 요소마다 선택될 확률, 중복 허용)
         self.pt = self.pt[:, inds] #예를들어 1~100까지 수 중에 50의 가중치가 제일 커서 inds안에 50이 100개중 20개나 차지 그럼 그 50에 대한 열벡터 값들이 pt에 20개나 저장됨
         self.wt = np.ones((1, Npt)) / Npt  # 가중치 초기화
-        
+
 class ESEKF:
     def __init__(self):
         self.prev_m_vecX_2 = 0
@@ -250,8 +250,8 @@ class ESEKF:
     def motionModelErrorStateJacobian(self, delta_t):
         vec = np.array([0,0,0,0,0],dtype=np.float32) # errorVec_x = 0
         self.m_jacobian_matF = np.array([
-            [0, w_i, -vec[3] * np.sin(vec[2]), np.cos(vec[2]), 0],
-            [-w_i, 0, vec[3] * np.cos(vec[2]), np.sin(vec[2]), 0],
+            [0, w_i, 0, 1, 0],
+            [-w_i, 0, 0, 0, 0],
             [0, 0, 0, 0, 1],
             [0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0]], dtype=np.float32)
@@ -281,31 +281,41 @@ class ESEKF:
             [vec[0] / np.sqrt(vec[0] ** 2 + vec[1] ** 2), vec[1] / np.sqrt(vec[0] ** 2 + vec[1] ** 2), 0, 0, 0],
             [-vec[1] / (vec[0] ** 2 + vec[1] ** 2), vec[0] / (vec[0] ** 2 + vec[1] ** 2), 0, 0, 0]], dtype=np.float32)
         
-    def measurementModelErrorStateJacobian(self):
-        vec = np.array([0,0,0,0,0],dtype=np.float32) # errorVec_x = 0
-        tmp = np.eye(5, dtype=np.float32)
-        self.errorstate_jacobian_matH = np.dot(self.m_jacobian_matH, tmp)
+    # def measurementModelErrorStateJacobian(self):
+    #     vec = np.array([0,0,0,0,0],dtype=np.float32) # errorVec_x = 0
+    #     # tmp = np.eye(5, dtype=np.float32)
+    #     tmp = np.array([[1, 0, 0, 0, 0],
+    #                     [0, 1, 0, 0, 0],
+    #                     [0, 0, 1, 0, 0],
+    #                     [0, 0, 0, 1, 0],
+    #                     [0, 0, 0, 0, 1]], dtype=np.float32)
+    #     self.errorstate_jacobian_matH = np.dot(self.m_jacobian_matH, tmp)
 
-    def resetG(self, vec):
-        self.m_matG = np.array([
-            [0, w_i, -vec[3] * np.sin(vec[2]), np.cos(vec[2]), 0],
-            [-w_i, 0, vec[3] * np.cos(vec[2]), np.sin(vec[2]), 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0]], dtype=np.float32)
-
+    def resetG(self):
+        # self.m_matG = np.array([
+        #     [0, w_i, -vec[3] * np.sin(vec[2]), np.cos(vec[2]), 0],
+        #     [-w_i, 0, vec[3] * np.cos(vec[2]), np.sin(vec[2]), 0],
+        #     [0, 0, 0, 0, 1],
+        #     [0, 0, 0, 0, 0],
+        #     [0, 0, 0, 0, 0]], dtype=np.float32)
+        self.m_matG = np.array([[1, 0, 0, 0, 0],
+                                [0, 1, 0, 0, 0],
+                                [0, 0, 1, 0, 0],
+                                [0, 0, 0, 1, 0],
+                                [0, 0, 0, 0, 1]], dtype=np.float32)
 
     def correction(self):
         self.measurementModel(self.m_vecX)
         self.measurementModelJacobian(self.m_vecX)
-        self.measurementModelErrorStateJacobian()
+        # self.measurementModelErrorStateJacobian()
         residual = self.m_vecZ - self.m_vech
-        residual_cov = np.dot(np.dot(self.errorstate_jacobian_matH, self.m_matP), self.errorstate_jacobian_matH.T) + self.m_matR
-        Kk = np.dot(np.dot(self.m_matP, self.errorstate_jacobian_matH.T), np.linalg.inv(residual_cov))
+        residual_cov = np.dot(np.dot(self.m_jacobian_matH, self.m_matP), self.m_jacobian_matH.T) + self.m_matR
+        Kk = np.dot(np.dot(self.m_matP, self.m_jacobian_matH.T), np.linalg.inv(residual_cov))
         self.m_vecX += np.dot(Kk, residual)
-        self.m_matP = np.dot((np.eye(5) - np.dot(Kk, self.errorstate_jacobian_matH)), self.m_matP)
-        self.resetG(self.m_vecX)
-        self.m_matP = np.dot(np.dot(self.m_matG,self.m_matP),self.m_matG.T)
+        self.m_matP = np.dot((np.eye(5) - np.dot(Kk, self.m_jacobian_matH)), self.m_matP)
+        self.resetG()
+        # self.m_matP = np.dot(np.dot(self.m_matG,self.m_matP),self.m_matG.T)
+        # self.m_matP = self.m_matP
 
 class EKF_UKF_PF_ESEKF_Node:
     def __init__(self):
@@ -402,7 +412,7 @@ class EKF_UKF_PF_ESEKF_Node:
             ekf_delta_t = 0.05
             ukf_delta_t = 0.06
             pf_delta_t = 0.005
-            esekf_delta_t = 0.025
+            esekf_delta_t = 0.001
             self.ekf_range_plus_bearing_without_comm.getvecZ()[0] = self.rho[i]
             self.ekf_range_plus_bearing_without_comm.getvecZ()[1] = self.bearing[i] * np.pi / 180
             
