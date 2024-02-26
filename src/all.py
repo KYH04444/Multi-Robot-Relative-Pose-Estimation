@@ -281,23 +281,7 @@ class ESEKF:
             [vec[0] / np.sqrt(vec[0] ** 2 + vec[1] ** 2), vec[1] / np.sqrt(vec[0] ** 2 + vec[1] ** 2), 0, 0, 0],
             [-vec[1] / (vec[0] ** 2 + vec[1] ** 2), vec[0] / (vec[0] ** 2 + vec[1] ** 2), 0, 0, 0]], dtype=np.float32)
         
-    # def measurementModelErrorStateJacobian(self):
-    #     vec = np.array([0,0,0,0,0],dtype=np.float32) # errorVec_x = 0
-    #     # tmp = np.eye(5, dtype=np.float32)
-    #     tmp = np.array([[1, 0, 0, 0, 0],
-    #                     [0, 1, 0, 0, 0],
-    #                     [0, 0, 1, 0, 0],
-    #                     [0, 0, 0, 1, 0],
-    #                     [0, 0, 0, 0, 1]], dtype=np.float32)
-    #     self.errorstate_jacobian_matH = np.dot(self.m_jacobian_matH, tmp)
-
     def resetG(self):
-        # self.m_matG = np.array([
-        #     [0, w_i, -vec[3] * np.sin(vec[2]), np.cos(vec[2]), 0],
-        #     [-w_i, 0, vec[3] * np.cos(vec[2]), np.sin(vec[2]), 0],
-        #     [0, 0, 0, 0, 1],
-        #     [0, 0, 0, 0, 0],
-        #     [0, 0, 0, 0, 0]], dtype=np.float32)
         self.m_matG = np.array([[1, 0, 0, 0, 0],
                                 [0, 1, 0, 0, 0],
                                 [0, 0, 1, 0, 0],
